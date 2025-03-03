@@ -1,0 +1,40 @@
+[project]
+name = "rossum-assignment"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Tadeas Fort", email = "business@tadeasfort.com" }
+]
+dependencies = [
+    "requests>=2.32.3",
+    "rossum-api @ git+https://github.com/rossumai/rossum-sdk",
+    "python-dotenv>=1.0.1",
+    "pycurl>=7.45.4",
+]
+readme = "README.md"
+requires-python = ">= 3.12"
+license = { text = "GPL-3.0" }
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.rye.scripts]
+# Authentication
+login = { cmd = "python src/utils/login.py --save" }
+
+# Deployment
+# Use the full path to rossum_hook.py and ensure it's deployed with proper events
+deploy = { cmd = "python src/deploy/deploy_with_sdk.py --function-file src/rossum_hook.py --function-name 'XML EXPORTER'" }
+
+# Triggering
+trigger = { cmd = "python src/trigger/trigger_with_sdk.py" }
+
+# Testing
+test-postbin = { cmd = "python src/tests/test_postbin.py --payload @payload.json --url {{args}}" }
+test-postbin-debug = { cmd = "python src/tests/test_postbin.py --payload @payload.json --url {{args}} --debug" }
+test-xml-format = { cmd = "python src/tests/test_xml_format.py" }

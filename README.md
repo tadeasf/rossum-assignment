@@ -136,14 +136,7 @@ The XML follows this structure:
 
 ## Payload Format
 
-When the hook is triggered, it generates a `payload.json` file with this structure:
-
-```json
-{
-    "annotationId": 1234567890,
-    "content": "base64_encoded_xml_content"
-}
-```
+When the hook is triggered it generates annotationId and content. You can use them to test the XML format and posting to an external API (you can have a look in payload_example.json) and create payload.json file pasting your output into it.
 
 ## Limitations and Workarounds
 

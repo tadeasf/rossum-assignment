@@ -15,7 +15,6 @@ from .config import (
     DEFAULT_FUNCTION_FILE,
     DEFAULT_QUEUE,
     DEFAULT_SCHEMA,
-    POSTBIN_URL,
     DEFAULT_TEST_FILE,
     normalize_api_url,
     determine_api_url,

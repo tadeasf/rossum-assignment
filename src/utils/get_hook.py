@@ -16,8 +16,8 @@ from typing import Dict, Any, Optional, List
 # Add the src directory to the path to make imports work properly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from utils.config import API_TOKEN, API_BASE_URL, determine_api_url
-from utils.login import get_client, create_api_client
+from utils.config import API_TOKEN, API_BASE_URL
+from utils.login import get_client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -170,7 +170,7 @@ def update_hook_events(hook_id: str, events: List[str], token: Optional[str] = N
             else:
                 result_dict = result
                 
-            logger.info(f"Successfully updated hook events")
+            logger.info("Successfully updated hook events")
             return result_dict
         
         # Fallback to direct API request
@@ -197,7 +197,7 @@ def update_hook_events(hook_id: str, events: List[str], token: Optional[str] = N
         response.raise_for_status()
         
         updated_hook = response.json()
-        logger.info(f"Successfully updated hook events via API")
+        logger.info("Successfully updated hook events via API")
         
         return updated_hook
         

@@ -14,13 +14,12 @@ from utils import (
     create_api_client,
 )
 
-from deploy import (
+from lib.deploy import (
     deploy_function_with_sdk,
-    list_queues_with_sdk,
 )
 
-from trigger import (
-    trigger_hook_with_sdk,
+from lib.trigger import (
+    test_hook,
 )
 
 __all__ = [
@@ -33,8 +32,7 @@ __all__ = [
     
     # Deployment
     'deploy_function_with_sdk',
-    'list_queues_with_sdk',
     
     # Triggering
-    'trigger_hook_with_sdk',
+    'test_hook',
 ]

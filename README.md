@@ -41,17 +41,7 @@ A serverless hook for Rossum that generates XML export data from Rossum annotati
    cp .env.example .env
    ```
 
-4. Edit the `.env` file with your credentials:
-   ```
-   ROSSUM_API_TOKEN="your_api_token"
-   ROSSUM_BASE_URL="https://api.elis.rossum.ai"
-   ROSSUM_EMAIL="your_email@example.com"
-   ROSSUM_PASSWORD="your_password"
-   ROSSUM_COMPANY_ID="your_company_id"
-   DEFAULT_ANNOTATION_ID="test_annotation_id"
-   DEFAULT_FUNCTION_NAME="XML EXPORTER"
-   DEFAULT_FUNCTION_FILE="src/rossum_hook.py"
-   ```
+4. Copy .env.example to .env and fill in your credentials.
 
 ## Available Commands
 

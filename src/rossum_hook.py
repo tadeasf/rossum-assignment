@@ -219,8 +219,18 @@ def prepare_postbin_payload(annotation_id, xml_content):
     Returns:
         dict: The payload for PostBin
     """
-    # Base64 encode the XML content
-    base64_content = base64.b64encode(xml_content.encode("utf-8")).decode("utf-8")
+    # Ensure XML is properly formatted before encoding
+    try:
+        # Parse the XML to make sure it's well-formed
+        dom = xml.dom.minidom.parseString(xml_content)
+        # Regenerate with pretty printing
+        formatted_xml = dom.toprettyxml(indent="  ", encoding="utf-8").decode("utf-8")
+        # Base64 encode the formatted XML content
+        base64_content = base64.b64encode(formatted_xml.encode("utf-8")).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error formatting XML before encoding: {e}")
+        # Fall back to original content if there's an error
+        base64_content = base64.b64encode(xml_content.encode("utf-8")).decode("utf-8")
     
     # Create the payload
     payload = {

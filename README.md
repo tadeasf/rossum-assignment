@@ -36,12 +36,7 @@ A serverless hook for Rossum that generates XML export data from Rossum annotati
    rye sync
    ```
 
-3. Create a `.env` file from the template:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Copy .env.example to .env and fill in your credentials.
+3. Copy .env.example to .env and fill in your credentials.
 
 ## Available Commands
 

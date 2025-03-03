@@ -20,15 +20,15 @@ A serverless hook for Rossum that generates XML export data from Rossum annotati
 ### Prerequisites
 
 - Python 3.12 or newer
-- [Rye](https://rye-up.com/) for dependency management
+- [Rye](https://rye.astral.sh/) for dependency management
 - Rossum API credentials
 
 ### Environment Setup
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/rossum-test.git
-   cd rossum-test
+   git clone https://github.com/tadeasfort/rossum-assignment.git
+   cd rossum-assignment
    ```
 
 2. Set up environment with Rye:

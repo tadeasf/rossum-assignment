@@ -10,6 +10,7 @@ dependencies = [
     "rossum-api @ git+https://github.com/rossumai/rossum-sdk",
     "python-dotenv>=1.0.1",
     "pycurl>=7.45.4",
+    "pyaml>=25.1.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.12"
@@ -29,7 +30,7 @@ login = { cmd = "python src/utils/login.py --save" }
 
 # Deployment
 # Use the full path to rossum_hook.py and ensure it's deployed with proper events
-deploy = { cmd = "python src/lib/deploy/deploy_with_sdk.py --function-file src/rossum_hook.py --function-name 'XML EXPORTER'" }
+deploy = { cmd = "python src/lib/deploy/deploy_with_sdk.py --file src/rossum_hook.py --function-name 'XML EXPORTER'" }
 
 # Triggering
 trigger = { cmd = "python src/lib/trigger/trigger_with_sdk.py" }

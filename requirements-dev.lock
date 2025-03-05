@@ -36,14 +36,18 @@ inflect==7.5.0
     # via rossum-api
 more-itertools==10.6.0
     # via inflect
+pyaml==25.1.0
+    # via rossum-assignment
 pycurl==7.45.4
-    # via rossum-test
+    # via rossum-assignment
 python-dotenv==1.0.1
-    # via rossum-test
+    # via rossum-assignment
+pyyaml==6.0.2
+    # via pyaml
 requests==2.32.3
-    # via rossum-test
+    # via rossum-assignment
 rossum-api @ git+https://github.com/rossumai/rossum-sdk@f4c999b311d1f011227073949ef252f124e726a9
-    # via rossum-test
+    # via rossum-assignment
 sniffio==1.3.1
     # via anyio
 tenacity==9.0.0

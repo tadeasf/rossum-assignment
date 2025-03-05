@@ -1,0 +1,31 @@
+version: "1.0"
+
+# XML structure definition
+xml:
+  root: "InvoiceRegisters"
+  structure:
+    Invoices:
+      Payable:
+        InvoiceNumber: "document_id"
+        InvoiceDate: "date_issue"
+        DueDate: "date_due"
+        TotalAmount: "amount_total"
+        Notes: "notes"
+        Iban: "iban"
+        Amount: "amount_total"
+        Currency: "currency"
+        Vendor: "sender_name"
+        VendorAddress: "sender_address"
+        Details:
+          - Detail:
+              Amount: "item_amount"
+              AccountId: "account_num"
+              Quantity: "item_quantity" 
+              Notes: "item_description"
+
+# Webhook configuration
+webhook:
+  url: "https://eof61da9bmm7q6f.m.pipedream.net"
+  payload:
+    annotationId: "{annotation_id}"
+    content: "{xml_content_base64}"

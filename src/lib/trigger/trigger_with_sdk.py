@@ -1,83 +1,74 @@
 #!/usr/bin/env python3
 """
-Simple script to trigger a Rossum serverless function using the /test endpoint.
+Trigger a webhook test using the Rossum SDK.
+This script sends a test request to a webhook with a simulated annotation event.
 """
 
 import json
 import logging
-import sys
+import os
+import yaml
 import pycurl
 from io import BytesIO
-from utils.config import API_BASE_URL
-from utils.login import get_client
+from utils.login import get_auth_token as get_token
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def test_hook(hook_id, base_url=API_BASE_URL, debug_token=None):
+####### STEP 1: Load YAML Configuration #######
+def load_config(yaml_path):
     """
-    Simple function to test a hook using the /test endpoint.
+    Load configuration from YAML file
+    
+    Args:
+        yaml_path (str): Path to YAML configuration file
+        
+    Returns:
+        dict: Configuration data
     """
-    if not hook_id:
-        logger.error("No hook ID provided")
-        sys.exit(1)
+    # Get the directory of the current script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Create absolute path to config.yml in the same directory
+    config_path = os.path.join(script_dir, yaml_path)
     
-    # 1. Get client and token
-    logger.info(f"Getting client for API URL: {base_url}")
-    client = get_client()
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+        logger.info(f"Successfully loaded configuration from {config_path}")
+        return config
+
+####### STEP 2: Get Authentication Token #######
+def get_auth_token():
+    """
+    Get authentication token from Rossum SDK        
+    Returns:
+        str: Authentication token
+    """
+    logger.info("Getting token from Rossum SDK client")
+    return get_token()
+
+####### STEP 3: Send Test Request to Rossum API #######
+def send_test_request(hook_id, token, payload, base_url):
+    """
+    Send test request to Rossum API
     
-    # Use provided debug token or get from client
-    if debug_token:
-        logger.info("Using provided debug token")
-        token = debug_token
-    else:
-        # Extract token from client - simplified to just use get_token()
-        try:
-            token = client.get_token()
-            if not token:
-                logger.error("Token returned from client.get_token() is empty")
-                sys.exit(1)
-        except Exception as e:
-            logger.error(f"Error getting token from client: {str(e)}")
-            sys.exit(1)
+    Args:
+        hook_id (str): Hook ID
+        token (str): Authentication token
+        payload (dict): Request payload
+        base_url (str): Base API URL
+        
+    Returns:
+        dict: Response data
+    """
+    # Prepare test URL
+    if base_url.endswith('/'):
+        base_url = base_url[:-1]
     
-    # Print masked token
-    masked_token = token[:4] + "..." + token[-4:] if len(token) > 10 else "****"
-    logger.info(f"Using token (masked): {masked_token}")
-    
-    # Format URL
-    base_url = base_url.rstrip("/")
     test_url = f"{base_url}/hooks/{hook_id}/test"
-    logger.info(f"Test URL: {test_url}")
+    logger.info(f"Sending test request to: {test_url}")
     
-    # 2. Create payload like curl command
-    payload = {
-        "payload": {
-            "action": "manual",
-            "event": "invocation",
-            "base_url": "https://test-company-tadeas.rossum.app",
-            "rossum_authorization_token": token,
-            "annotation": {},
-            "document": {},
-            "settings": {
-                "annotation_id": 7992402
-            }
-        }
-    }
-    
-    # Print the equivalent curl command for comparison
-    logger.info("Equivalent curl command:")
-    print(f"""
-curl '{test_url}' \\
-  -H 'Content-Type: application/json' \\
-  -H 'Authorization: Token {token}' \\
-  -d '{json.dumps(payload, indent=2)}'
-""")
-    
-    logger.info(f"Using payload: {json.dumps(payload, indent=2)}")
-    
-    # 3. Make the request with pycurl
+    # Send request with PyCurl
     buffer = BytesIO()
     c = pycurl.Curl()
     c.setopt(c.URL, test_url)
@@ -88,46 +79,120 @@ curl '{test_url}' \\
     ])
     c.setopt(c.POST, 1)
     c.setopt(c.POSTFIELDS, json.dumps(payload))
-    
-    # Add verbose debugging
     c.setopt(c.VERBOSE, 1)
     
-    # Execute the request
     logger.info("Sending request...")
     c.perform()
     
-    # Get status code
     status_code = c.getinfo(c.RESPONSE_CODE)
     c.close()
     
-    # Get response body
-    response_body = buffer.getvalue().decode('utf-8')
+    logger.info(f"Response status code: {status_code}")
     
-    # 4. Show response
-    logger.info(f"Response status: {status_code}")
+    # Parse response
+    response_body = buffer.getvalue().decode('utf-8')
     try:
         response_data = json.loads(response_body) if response_body else {}
-        print("\nResponse:")
-        print(json.dumps(response_data, indent=2))
+        return {
+            "status": "success", 
+            "code": status_code, 
+            "response": response_data
+        }
     except json.JSONDecodeError:
-        print("\nResponse (non-JSON):")
-        print(response_body)
+        return {
+            "status": "success", 
+            "code": status_code, 
+            "response_text": response_body
+        }
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        logger.error("Usage: python trigger_with_sdk.py <hook_id> [base_url] [debug_token]")
-        sys.exit(1)
+####### MAIN TEST HOOK FUNCTION #######
+def test_hook(hook_id, annotation_id="7992402", base_url=None, debug_token=None, config_path="config.yml"):
+    """
+    Test a webhook by sending a simulated annotation event
     
-    hook_id = sys.argv[1]
-    base_url = API_BASE_URL
-    debug_token = None
-    
-    # Use custom base URL if provided
-    if len(sys.argv) > 2:
-        base_url = sys.argv[2]
-    
-    # Use debug token if provided
-    if len(sys.argv) > 3:
-        debug_token = sys.argv[3]
+    Args:
+        hook_id (str): Hook ID to test
+        annotation_id (str): Annotation ID to use in the test
+        base_url (str, optional): Base API URL, defaults to API_BASE_URL from config
+        debug_token (str, optional): Debug token to use instead of getting a new one
+        config_path (str): Path to configuration file
         
-    test_hook(hook_id, base_url, debug_token) 
+    Returns:
+        dict: Response data from the API
+    """
+    logger.info(f"Testing hook {hook_id} with annotation {annotation_id}")
+    
+    # Step 1: Load configuration
+    config = load_config(config_path)
+    
+    # Step 2: Get authentication token
+    token = debug_token if debug_token else get_auth_token()
+    
+    if not token:
+        logger.error("Failed to get authentication token")
+        return None
+        
+    # If base_url not provided, get it from the login module
+    if base_url is None:
+        from utils.config import API_BASE_URL
+        base_url = API_BASE_URL
+        
+    # Step 3: Prepare the test request payload
+    payload = {
+        "payload": {
+            "action": "manual",
+            "event": "invocation",
+            "base_url": "https://test-company-tadeas.rossum.app",
+            "rossum_authorization_token": token,
+            "annotation": {},
+            "document": {},
+            "settings": {
+                "annotation_id": annotation_id,
+                "config": config
+            }
+        }
+    }
+    
+    # 5. Log details
+    logger.info(f"Testing hook ID: {hook_id}")
+    logger.info(f"Using annotation ID: {annotation_id}")
+    logger.info(f"Config loaded from: {config_path}")
+    
+    # 6. Send test request
+    result = send_test_request(hook_id, token, payload, base_url)
+    
+    # 7. Display results
+    if "response" in result:
+        logger.info("\nResponse:")
+        logger.info(json.dumps(result["response"], indent=2))
+    else:
+        logger.info("\nResponse (non-JSON):")
+        logger.info(result.get("response_text", "No response text"))
+    
+    return result
+
+####### CLI ENTRY POINT #######
+if __name__ == "__main__":
+    import argparse
+    from utils.config import API_BASE_URL
+    
+    parser = argparse.ArgumentParser(description="Test a Rossum serverless function")
+    parser.add_argument("hook_id", help="The ID of the hook to test")
+    parser.add_argument("--annotation-id", default="7992402", help="The annotation ID to use for testing")
+    parser.add_argument("--config", default="config.yml", help="Path to YAML configuration file")
+    parser.add_argument("--debug-token", help="Debug token to use instead of getting from client")
+    parser.add_argument("--base-url", default=API_BASE_URL, help="Base URL for the API")
+    
+    args = parser.parse_args()
+    
+    result = test_hook(
+        args.hook_id,
+        annotation_id=args.annotation_id,
+        base_url=args.base_url,
+        debug_token=args.debug_token,
+        config_path=args.config
+    )
+    
+    if result.get("status") == "error":
+        logger.error(result.get("message"))
+        exit(1)  # Only use exit in the CLI entry point, not in the function 

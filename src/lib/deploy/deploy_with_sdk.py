@@ -10,11 +10,7 @@ import os
 import sys
 import json
 from typing import Dict, Any, Optional, List
-from utils.config import (
-    API_TOKEN,
-    API_BASE_URL,
-    DEFAULT_FUNCTION_NAME,
-    DEFAULT_FUNCTION_FILE,)
+
 # Add the src directory to the path to make imports work properly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -55,7 +51,7 @@ def read_function_file(file_path: str) -> str:
             return f.read()
     except Exception as e:
         logger.error(f"Error reading function file: {e}")
-        sys.exit(1)
+        return None
 
 def should_update_function(existing_hook, new_function_code: str, client) -> bool:
     """
@@ -138,7 +134,7 @@ def deploy_function_with_sdk(
         # Validate that the function includes the required handler function
         if "rossum_hook_request_handler" not in function_code:
             logger.error("Error: Function code must include a 'rossum_hook_request_handler' function")
-            sys.exit(1)
+            return None
         
         # Use default events if none provided
         if not events:
@@ -325,107 +321,78 @@ def deploy_function_with_sdk(
         # Print more detailed information for debugging
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        return None
 
-
-def main():
-    """Main entry point for the script."""
-    # Parse command line arguments
+def parse_arguments():
+    """Parse command line arguments for function deployment.
+    
+    Returns:
+        argparse.Namespace: The parsed command line arguments
+    """
     parser = argparse.ArgumentParser(description="Deploy a serverless function to Rossum")
-    parser.add_argument("--function-file", "-f", help="Path to the function file", default=DEFAULT_FUNCTION_FILE)
-    parser.add_argument("--function-name", "-n", help="Name of the function", default=DEFAULT_FUNCTION_NAME)
-    parser.add_argument("--token", "-t", help="Rossum API token")
-    parser.add_argument("--base-url", "-u", help="Rossum API base URL", default=API_BASE_URL)
-    parser.add_argument("--queue-id", "-q", help="Queue ID to associate with the function", type=int)
-    parser.add_argument("--list-queues", action="store_true", help="List available queues")
-    parser.add_argument("--token-owner-id", help="User ID to set as token owner (default: from environment or 319333)")
-    parser.add_argument("--events", help="Comma-separated list of event types (default: invocation.manual)", default="invocation.manual")
-    parser.add_argument("--verify", action="store_true", help="Verify the hook can be triggered after deployment")
-    parser.add_argument("--force-update", action="store_true", help="Force update even if no code changes are detected")
+    
+    # Function source options (mutually exclusive)
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--file", "-f", dest="file_path", help="Path to the function file")
+    source_group.add_argument("--code", "-c", dest="function_code", help="Function code as a string")
+    
+    # Function configuration
+    parser.add_argument("--function-name", "-n", required=True, help="Name of the function")
+    parser.add_argument("--queue-id", "-q", type=int, help="Queue ID to associate with the function")
+    parser.add_argument("--token-owner", "-o", help="User ID or URL to set as token owner")
+    parser.add_argument("--events", "-e", help="Comma-separated list of event types (e.g., 'invocation.manual,annotation.status.changed')")
+    parser.add_argument("--force-update", "-u", action="store_true", help="Force update even if no code changes are detected")
+    
+    # Extra options
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-    parser.add_argument("--use-token", action="store_true", help="Use token authentication instead of email/password")
+    
     args = parser.parse_args()
     
-    # Set up verbose logging if requested
+    # Configure logging level based on verbosity
     if args.verbose:
         logger.setLevel(logging.DEBUG)
         logger.debug("Debug logging enabled")
-    
-    # Import here to avoid circular imports
+        
+    return args
+
+def main():
+    """Main function for deploying a serverless function to Rossum."""
     try:
-        from utils.login import create_api_client
-        from utils.config import EMAIL, PASSWORD
+        # Parse command line arguments
+        args = parse_arguments()
         
-        # By default, use email and password authentication
-        logger.info(f"Using email authentication with email: {EMAIL}")
+        # Get API client
+        logger.info("Getting authenticated API client")
+        from utils.login import get_client
+        client = get_client()
         
-        # Get base URL
-        base_url = args.base_url or API_BASE_URL
-        
-        # Determine if we should use token or email/password authentication
-        if args.use_token or not EMAIL or not PASSWORD:
-            # Use token authentication as fallback
-            token = args.token or API_TOKEN
+        if not client:
+            logger.error("Failed to get API client")
+            return None
             
-            if not token:
-                logger.error("No token provided and email/password not available. Set ROSSUM_API_TOKEN in .env or provide --token")
-                sys.exit(1)
-                
-            logger.info("Using token authentication")
-            client, _ = create_api_client(username=None, password=None, base_url=base_url, token=token)
+        # Load function code
+        if args.file_path:
+            logger.info(f"Loading function code from file: {args.file_path}")
+            function_code = read_function_file(args.file_path)
+        elif args.function_code:
+            logger.info("Using provided function code")
+            function_code = args.function_code
         else:
-            # Use email/password authentication (preferred)
-            logger.info(f"Creating API client with email: {EMAIL}")
-            client, _ = create_api_client(username=EMAIL, password=PASSWORD, base_url=base_url)
-    except (ImportError, AttributeError) as e:
-        logger.error(f"Failed to import from utils.login: {str(e)}")
-        logger.error("Make sure utils module is in the Python path")
-        sys.exit(1)
-    
-    if not client:
-        logger.error("Failed to create API client")
-        sys.exit(1)
-        
-    # Test the API client with a simple operation
-    try:
-        logger.debug("Testing API client connection")
-        # Try a simple API call to test the connection
-        workspaces = client.list_all_workspaces(limit=1)
-        # Force evaluation of generator
-        next(iter(workspaces), None)
-        logger.debug("API client connection test successful")
-    except Exception as e:
-        logger.warning(f"API client connection test failed: {str(e)}")
-        # Continue anyway - the issue might be with this specific API call
-    
-    # Read the function file
-    try:
-        function_code = read_function_file(args.function_file)
-    except Exception as e:
-        logger.error(f"Error reading function file: {str(e)}")
-        sys.exit(1)
-        
-    # Deploy the function
-    try:
-        # Get token owner ID from argument, environment variable, or use default
-        token_owner_id = args.token_owner_id or os.environ.get("ROSSUM_TOKEN_OWNER_ID", "319333")
-        
-        # Format the token owner URL
-        base_part = base_url.rstrip('/').replace('/api/v1', '')
-        if not base_part.startswith('http'):
-            base_part = 'https://' + base_part
+            logger.error("No function code provided. Use --file or --code")
+            return None
             
-        # Add the API path and user ID
-        token_owner_url = f"{base_part}/api/v1/users/{token_owner_id}"
-        logger.info(f"Using token owner: {token_owner_url}")
-        
-        # Parse events
-        events = [event.strip() for event in args.events.split(',') if event.strip()]
-        logger.info(f"Using events: {events}")
-        
-        # Display total code length for information
-        logger.info(f"Function code length: {len(function_code)} characters")
-        
+        # Convert token owner to URL format if needed
+        token_owner_url = None
+        if args.token_owner:
+            token_owner_url = args.token_owner
+            if not token_owner_url.startswith('http'):
+                token_owner_url = f"{client.url.rstrip('/v1')}/users/{token_owner_url}"
+                
+        # Convert events to list
+        events = []
+        if args.events:
+            events = [e.strip() for e in args.events.split(",")]
+            
         # Deploy the function
         result = deploy_function_with_sdk(
             client,
@@ -439,12 +406,10 @@ def main():
         return result
     except Exception as e:
         logger.error(f"Error deploying function: {str(e)}")
-        sys.exit(1)
+        return None
 
 if __name__ == "__main__":
     try:
         result = main()
-        sys.exit(0 if result else 1)
     except Exception as e:
         logger.error(f"Unhandled exception: {str(e)}")
-        sys.exit(1) 
